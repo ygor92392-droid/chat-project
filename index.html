@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Seguro</title>
+    <title>Chat da Sala</title>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         #auth-container, #chat-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 350px; }
@@ -19,46 +19,51 @@
 
     <div id="auth-container">
         <h2>Entrar no Chat</h2>
-        <input type="email" id="email" placeholder="E-mail">
-        <input type="password" id="password" placeholder="Senha">
-        <button onclick="login()">Entrar / Criar Conta</button>
+        <input type="text" id="student-name" placeholder="Digite seu nome..." onkeydown="if(event.key === 'Enter') login()">
+        <button onclick="login()">Entrar no Chat</button>
     </div>
 
     <div id="chat-container" class="hidden">
-        <h3>Bem-vindo, <span id="user-display"></span></h3>
+        <h3>Olá, <span id="user-display"></span>!</h3>
         <div id="messages">Carregando mensagens...</div>
-        <input type="text" id="msg-input" placeholder="Digite sua mensagem..." onkeydown="if(event.key === 'Enter') sendMessage()">
+        <input type="text" id="msg-input" placeholder="Digite sua mensagem aqui..." onkeydown="if(event.key === 'Enter') sendMessage()">
         <button onclick="sendMessage()">Enviar</button>
         <button onclick="logout()" style="background: #dc3545; margin-top: 10px;">Sair</button>
     </div>
 
     <script>
         // =================================================================
-        // O seu link do Apps Script foi colocado devidamente na variável abaixo:
+        // Link de conexão com o seu Google Apps Script
         // =================================================================
         const URL_DO_SCRIPT = "https://script.google.com/macros/s/AKfycbxcB6DJdBFsfKhLTadjzynv2flHjComA0Yp5GwuFmW2UgcyItSIcMGlmSIC00A3cCiLTA/exec";
         
         let usuarioLogado = "";
         let temporizadorChat = null;
 
-        // Lógica de interface e Login
+        // Entrar no chat apenas com o nome
         function login() {
-            const email = document.getElementById('email').value;
-            if(email) {
-                usuarioLogado = email;
+            const nomeInput = document.getElementById('student-name').value.trim();
+            if(nomeInput) {
+                usuarioLogado = nomeInput;
+                
+                // Transição de telas
                 document.getElementById('auth-container').classList.add('hidden');
                 document.getElementById('chat-container').classList.remove('hidden');
-                document.getElementById('user-display').innerText = email;
+                document.getElementById('user-display').innerText = nomeInput;
                 
-                // Carrega as mensagens e ativa a atualização a cada 3 segundos
+                // FOCO AUTOMÁTICO: Joga o cursor direto na caixa de texto da mensagem
+                const msgInput = document.getElementById('msg-input');
+                msgInput.focus();
+                
+                // Carrega o histórico da planilha e atualiza a cada 3 segundos
                 atualizarChat();
                 temporizadorChat = setInterval(atualizarChat, 3000);
             } else {
-                alert("Por favor, insira um e-mail.");
+                alert("Por favor, digite o seu nome para entrar.");
             }
         }
 
-        // Função para Buscar Mensagens da Planilha (doGet)
+        // Buscar dados da planilha (Todos os alunos veem as mesmas mensagens)
         async function atualizarChat() {
             const msgArea = document.getElementById('messages');
             if (URL_DO_SCRIPT === "COLE_AQUI_A_SUA_URL_DO_WEB_APP") {
@@ -70,32 +75,33 @@
                 const response = await fetch(URL_DO_SCRIPT);
                 const dados = await response.json();
                 
-                msgArea.innerHTML = ''; // Limpa o chat para atualizar
+                msgArea.innerHTML = ''; // Limpa o chat para renderizar o novo conteúdo
                 
                 if(dados.length === 0) {
                     msgArea.innerHTML = '<p style="color:gray; text-align:center;">Nenhuma mensagem por enquanto...</p>';
                 }
 
+                // Renderiza cada linha guardada na planilha
                 dados.forEach(item => {
                     const p = document.createElement('p');
                     p.innerHTML = `<strong>${item.nome}:</strong> ${item.mensagem}`;
                     msgArea.appendChild(p);
                 });
                 
-                msgArea.scrollTop = msgArea.scrollHeight; // Rola para o fim
+                msgArea.scrollTop = msgArea.scrollHeight; // Sempre rola para a última mensagem
             } catch (erro) {
                 console.error("Erro ao buscar dados:", erro);
             }
         }
 
-        // Função para Enviar Mensagem para a Planilha (doPost)
+        // Enviar mensagem para a Planilha
         async function sendMessage() {
             const input = document.getElementById('msg-input');
             const texto = input.value.trim();
             
             if(!texto) return;
 
-            // Limpa o campo de texto imediatamente para dar fluidez
+            // Limpa o campo na hora para o aluno poder digitar a próxima imediatamente
             input.value = '';
 
             const dadosEnvio = {
@@ -104,15 +110,14 @@
             };
 
             try {
-                // Envia os dados no formato JSON esperado pelo doPost
                 await fetch(URL_DO_SCRIPT, {
                     method: 'POST',
-                    mode: 'no-cors', // Evita bloqueios de CORS no navegador
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dadosEnvio)
                 });
                 
-                // Atualiza o chat logo em seguida
+                // Atualiza o chat logo em seguida para mostrar a própria mensagem
                 atualizarChat();
             } catch (erro) {
                 console.error("Erro ao enviar:", erro);
